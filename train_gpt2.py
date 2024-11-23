@@ -223,9 +223,9 @@ class Block(nn.Module):
 @dataclass
 class GPTConfig:
     vocab_size : int = 50304
-    n_layer : int = 12
-    n_head : int = 6 # head dim 128 suggested by @Grad62304977
-    n_embd : int = 768
+    n_layer : int = 48
+    n_head : int = 25 # head dim 128 suggested by @Grad62304977
+    n_embd : int = 1600
 
 class GPT(nn.Module):
 
@@ -338,15 +338,15 @@ class DistributedDataLoader:
 @dataclass
 class Hyperparameters:
     # data hyperparams
-    input_bin : str = 'data/fineweb10B/fineweb_train_*.bin' # input .bin to train on
-    input_val_bin : str = 'data/fineweb10B/fineweb_val_*.bin' # input .bin to eval validation loss on
+    input_bin : str = 'data/edu_fineweb100B/edu_fineweb_train_*.bin' # input .bin to train on
+    input_val_bin : str = 'data/edu_fineweb100B/edu_fineweb_val_*.bin' # input .bin to eval validation loss on
     # optimization hyperparams
-    batch_size : int = 8*64 # batch size, in sequences, across all devices
-    device_batch_size : int = 64 # batch size, in sequences, per device
+    batch_size : int = 8*16 # batch size, in sequences, across all devices
+    device_batch_size : int = 16 # batch size, in sequences, per device
     sequence_length : int = 1024 # sequence length, in tokens
-    num_iterations : int = 3242 # number of iterations to run
+    num_iterations : int = 9000 # number of iterations to run
     warmup_iters : int = 0
-    warmdown_iters : int = 926 # number of iterations of linear warmup/warmdown for triangular or trapezoidal schedule
+    warmdown_iters : int = 2571 # number of iterations of linear warmup/warmdown for triangular or trapezoidal schedule
     weight_decay : float = 0
     # evaluation and logging hyperparams
     val_loss_every : int = 125 # every how many steps to evaluate val loss? 0 for only at the end
@@ -385,7 +385,7 @@ x, y = train_loader.next_batch()
 # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency. suggested to me by @Grad62304977.
 # this originates from Karpathy's experiments.
 num_vocab = 50304
-model = GPT(GPTConfig(vocab_size=num_vocab, n_layer=12, n_head=6, n_embd=768))
+model = GPT(GPTConfig(vocab_size=num_vocab))
 model = model.cuda().bfloat16()
 for m in model.modules():
     if isinstance(m, CastedLinear):
@@ -406,7 +406,7 @@ enable_math_sdp(False)
 
 # init the optimizer(s)
 optimizer1 = torch.optim.Adam([raw_model.transformer.wte.weight], lr=0.3,   betas=(0.9, 0.95), fused=True)
-optimizer2 = torch.optim.Adam([raw_model.lm_head.weight],         lr=0.002, betas=(0.9, 0.95), fused=True)
+optimizer2 = torch.optim.Adam([raw_model.lm_head.weight],         lr=0.001, betas=(0.9, 0.95), fused=True)
 params = list(raw_model.transformer.h.parameters())
 matrix_params = [p for p in params if p.ndim == 2]
 scalar_params = [p for p in params if p.ndim < 2]
